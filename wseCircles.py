@@ -142,7 +142,11 @@ class Simulator:
         for pairInd in range(self.teamSize):
             player1 = self.players1[pairInd]
 
-            index2 = (pairInd + self.offset) % self.teamSize
+            index2 = pairInd
+
+            if self.moveType == teamsMoveStrategy:
+                index2 = (pairInd + self.offset) % self.teamSize
+            
             player2 = self.players2[index2]
 
             askOk1 = player1.ask(player2)
@@ -158,6 +162,14 @@ class Simulator:
             if self.needExchange:
                 player1.exchange(player2)
 
+        if self.moveType == cycleMoveStrategy:
+            players1 = self.players2[0:1] + self.players1[:-1]
+            players2 = self.players2[1:] + self.players1[-1:]
+            self.players1 = players1
+            self.players2 = players2
+        else:
+            self.offset = self.offset + 1
+
         return True
     
     def simulate(self):
@@ -171,7 +183,6 @@ class Simulator:
             canContinue = self.round()
             if canContinue:
                 successfulRounds = successfulRounds + 1
-                self.offset = self.offset + 1
     
         self.logger.log("Simulation ended, total successful rounds " + str(successfulRounds))
         self.logger.log("Questions answered: " + str(successfulRounds * self.teamSize * 2))
@@ -251,6 +262,7 @@ def Simulate(wnd):
     except: pass
 
     simulator = Simulator()
+    simulator.moveType = cycleMoveStrategy
     simulator.logger.verbose = verbose
     simulator.teamSize = teamSize
     simulator.needExchange = needExchange
