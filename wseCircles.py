@@ -277,7 +277,7 @@ def SimulateWithUICB(wnd):
 
     wnd.numPlayersStr.set(str(simulator.teamSize))
 
-def SimulateWithUI():
+def StartWithUI():
 
     root = tk.Tk()
     app = AppWindow(master=root)
@@ -286,7 +286,7 @@ def SimulateWithUI():
     app.simulateCallback = SimulateWithUICB
     app.mainloop()
 
-def SimulateWithConsole():
+def StartWithConsole():
     
     simulator = Simulator()
     simulator.teamSize = getInt(input("players in each team: "))
@@ -303,6 +303,6 @@ def SimulateWithConsole():
 console = "console" in sys.argv
 
 if console:
-    SimulateWithConsole()
+    StartWithConsole()
 else:
-    SimulateWithUI()
+    StartWithUI()
