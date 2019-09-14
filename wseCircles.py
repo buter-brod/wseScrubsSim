@@ -197,6 +197,7 @@ class AppWindow(tk.Frame):
         self.numPlayersStr = tk.StringVar()
         self.needExchangeVar = tk.IntVar()
         self.verboseVar = tk.IntVar()
+        self.cycleVar = tk.IntVar()
 
         self.create_widgets()
 
@@ -205,6 +206,9 @@ class AppWindow(tk.Frame):
 
     def getNeedExhange(self):
         return self.needExchangeVar.get() == 1
+
+    def getCycled(self):
+        return self.cycleVar.get() == 1
 
     def getVerbose(self):
         return self.verboseVar.get() == 1
@@ -237,6 +241,9 @@ class AppWindow(tk.Frame):
         self.verboseBox = tk.Checkbutton(self, text = "Verbose", variable = self.verboseVar, onvalue = 1, offvalue = 0, height=1, width = 20)
         self.verboseBox.pack()
 
+        self.cycleBox = tk.Checkbutton(self, text = "Cycle", variable = self.cycleVar, onvalue = 1, offvalue = 0, height=1, width = 20)
+        self.cycleBox.pack()
+
         self.simulateBtn = tk.Button(self)
         self.simulateBtn["text"] = "Start!"
         self.simulateBtn["command"] = self.simulationStart
@@ -256,13 +263,14 @@ def Simulate(wnd):
     numPlayersStr = wnd.getNumPlayersStr()
     needExchange = wnd.getNeedExhange()
     verbose = wnd.getVerbose()
+    cycledMove = wnd.getCycled()
 
     try:
         teamSize = int(numPlayersStr)
     except: pass
 
     simulator = Simulator()
-    simulator.moveType = cycleMoveStrategy
+    simulator.moveType = cycleMoveStrategy if cycledMove else teamsMoveStrategy
     simulator.logger.verbose = verbose
     simulator.teamSize = teamSize
     simulator.needExchange = needExchange
