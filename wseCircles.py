@@ -1,5 +1,18 @@
 import tkinter as tk
 
+teamsMoveStrategy = "Teams"
+cycleMoveStrategy = "Cycle"
+
+class Settings:
+    def __init__(self):
+        self.wndW = 640
+        self.wndH = 480
+        self.defaultTeamSize = 5
+        self.minTeamSize = 2
+        self.maxTeamSize = 8
+
+settings = Settings()
+
 names = ["Janitor", 
          "Ted", 
          "JD", 
@@ -35,51 +48,42 @@ questionsStrList = [
              "Are you going to die or not", 
              "Woff"]
 
+assert len(names) <= len(questionsStrList)
+
 class Question:
     def __init__(self, str):
         self.str = str
 
-questions = []
-
-for qStr in questionsStrList:
-    questions.append(Question(qStr))
-
-assert len(names) <= len(questions)
-
-defaultNumPlayers = 5
-minPlayers = 2
-maxPlayers = int(len(names) / 2)
-
 class Logger:
     def __init__(self):
-        self.cb = None
+        self.__logs = ""
         self.verbose = False
 
     def log(self, msg):
-        if self.cb != None:
-            return self.cb(msg)
+        self.__logs = self.__logs + msg + "\n"
 
-logger = Logger()
+    def getLog(self):
+        return self.__logs[:]
 
 class Player:
     def __init__(self):
         self.name = ""
         self.currQuestion = None
-        self.questionsAsked = []
-        self.questionsAnswered = []
+        self.__questionsAsked = []
+        self.__questionsAnswered = []
 
     def ask(self, anotherPlayer):
 
-        alreadyAnswered = self.currQuestion in anotherPlayer.questionsAnswered
+        alreadyAnswered = self.currQuestion in anotherPlayer.__questionsAnswered
         
-        self.questionsAsked.append(self.currQuestion)
-        anotherPlayer.questionsAnswered.append(self.currQuestion)
+        self.__questionsAsked.append(self.currQuestion)
+        anotherPlayer.__questionsAnswered.append(self.currQuestion)
 
-        if logger.verbose:
-            logger.log(self.name + " asks " + anotherPlayer.name + ": " + self.currQuestion.str)
+        if self.logger.verbose:
+            self.logger.log(self.name + " asks " + anotherPlayer.name + ": " + self.currQuestion.str)
 
         if alreadyAnswered:
-            logger.log("oops, " + anotherPlayer.name + " had to answer '" + self.currQuestion.str + "' again..")
+            self.logger.log("oops, " + anotherPlayer.name + " had to answer '" + self.currQuestion.str + "' again..")
             return False
         
         return True
@@ -89,100 +93,52 @@ class Player:
         self.currQuestion = anotherPlayer.currQuestion
         anotherPlayer.currQuestion = myQuestion
 
-        if logger.verbose:
+        if self.logger.verbose:
             pass
-            #logger.log(self.name + " exchanged questions with " + anotherPlayer.name)
+            #self.logger.log(self.name + " exchanged questions with " + anotherPlayer.name)
 
-class Application(tk.Frame):
-    def __init__(self, master=None):
-        super().__init__(master)
-        self.master = master
-        self.pack()
-        self.create_widgets()
+class Simulator:
+    def __init__(self):
+        self.teamSize = settings.defaultTeamSize
+        self.needExchange = False
+        self.logger = Logger()
+        self.moveType = teamsMoveStrategy
 
-        logger.cb = self.log
+        self.questions = []
 
-    def validatePlayersNum(self):
-
-        numPlayers = minPlayers
-
-        try:
-            numPlayers = int(self.numPlayersStr.get())
-        except: pass
-
-        if (numPlayers < minPlayers):
-            numPlayers = minPlayers
+        for qStr in questionsStrList:
+            self.questions.append(Question(qStr))
         
-        if numPlayers > maxPlayers:
-            numPlayers = maxPlayers
+    @property 
+    def teamSize(self):
+        return self.__teamSize
 
-        self.numPlayersStr.set(numPlayers)
+    @teamSize.setter
+    def teamSize(self, teamSize):
 
-        self.teamSize = numPlayers
-
-        questionsCount = len(questions)
-        namesCount = len(names)
-     
-
-    def numPlayersChanged(self, par1, par2, what):
-        pass
-
-
-    def verboseChanged(self, par1, par2, what):
-        logger.verbose = self.verboseVar.get() == 1
-
-    def log(self, msg):
-        self.logWidget.insert(tk.INSERT, msg + "\n")
-
-    def create_widgets(self):
-
-        numPlayersLabelStr = tk.StringVar()
-        numPlayersLabelStr.set("How many players in each team (" + str(minPlayers) + "-"+ str(maxPlayers) + ")")
-
-        self.numPlayersLabel = tk.Label(self, textvariable=numPlayersLabelStr)
-        self.numPlayersLabel.pack()
-
-        self.numPlayersStr = tk.StringVar()
-        self.numPlayersStr.set(defaultNumPlayers)
-        self.numPlayersStr.trace_add("write", self.numPlayersChanged)
+        if (teamSize < settings.minTeamSize):
+            teamSize = settings.minTeamSize
         
-        self.playersNumEntry = tk.Entry(self, textvariable=self.numPlayersStr)
-        self.playersNumEntry.pack()
+        if teamSize > settings.maxTeamSize:
+            teamSize = settings.maxTeamSize
 
-        self.needExchangeVar = tk.IntVar()
-        self.needExchangeBox = tk.Checkbutton(self, text = "Exchange questions", variable = self.needExchangeVar, onvalue = 1, offvalue = 0, height=1, width = 20)
-        self.needExchangeBox.pack()
-
-        self.verboseVar = tk.IntVar()
-        self.verboseVar.trace_add("write", self.verboseChanged)
-        self.verboseBox = tk.Checkbutton(self, text = "Verbose", variable = self.verboseVar, onvalue = 1, offvalue = 0, height=1, width = 20)
-        self.verboseBox.pack()
-
-        self.simulateBtn = tk.Button(self)
-        self.simulateBtn["text"] = "Simulate!"
-        self.simulateBtn["command"] = self.simulationStart
-        self.simulateBtn.pack(side="top")
-
-        self.logWidget = tk.Text(self)
-        self.logWidget.pack()
+        self.__teamSize = teamSize
 
     def preparePlayers(self):
-
         self.players = []
-
         allPlayersNum = self.teamSize * 2
 
         for index in range(allPlayersNum):
             player = Player()
+            player.logger = self.logger
             player.name = names[index]
-            player.currQuestion = questions[index]
+            player.currQuestion = self.questions[index]
             self.players.append(player)
 
         self.players1 = self.players[:self.teamSize]
         self.players2 = self.players[self.teamSize:]
 
     def round(self):
-        
         for pairInd in range(self.teamSize):
             player1 = self.players1[pairInd]
 
@@ -203,38 +159,111 @@ class Application(tk.Frame):
                 player1.exchange(player2)
 
         return True
-
-    def simulationStart(self):
-
-        self.validatePlayersNum()
-        self.needExchange = self.needExchangeVar.get() == 1
-
-        self.logWidget.delete("0.0", tk.END)
-        #self.log("Simulation started!")
+    
+    def simulate(self):
 
         self.preparePlayers()
-
         successfulRounds = 0
         self.offset = 0
-
         canContinue = True
 
         while canContinue:
-            
-            roundOk = self.round()
-
-            if roundOk:
+            canContinue = self.round()
+            if canContinue:
                 successfulRounds = successfulRounds + 1
                 self.offset = self.offset + 1
+    
+        self.logger.log("Simulation ended, total successful rounds " + str(successfulRounds))
+        self.logger.log("Questions answered: " + str(successfulRounds * self.teamSize * 2))
 
-            canContinue = roundOk
+class AppWindow(tk.Frame):
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.master = master
+        self.pack()
+        self.simulateCallback = None
 
-        #self.log("Simulation ended, total successful rounds " + str(successfulRounds))
+        self.numPlayersStr = tk.StringVar()
+        self.needExchangeVar = tk.IntVar()
+        self.verboseVar = tk.IntVar()
 
+        self.create_widgets()
+
+    def getNumPlayersStr(self):
+        return self.numPlayersStr.get()
+
+    def getNeedExhange(self):
+        return self.needExchangeVar.get() == 1
+
+    def getVerbose(self):
+        return self.verboseVar.get() == 1
+
+    def log(self, msg):
+        self.logWidget.insert(tk.INSERT, msg + "\n")
+
+    def clearLog(self):
+        self.logWidget.delete("0.0", tk.END)
+
+    def simulationStart(self):
+        self.simulateCallback(self)
+
+    def create_widgets(self):
+
+        numPlayersLabelStr = tk.StringVar()
+        numPlayersLabelStr.set("How many players in each team (" + str(settings.minTeamSize) + "-"+ str(settings.maxTeamSize) + ")")
+
+        self.numPlayersLabel = tk.Label(self, textvariable=numPlayersLabelStr)
+        self.numPlayersLabel.pack()
         
-root = tk.Tk()
-app = Application(master=root)
-app.master.minsize(640, 480)
-app.master.maxsize(640, 480)
+        self.numPlayersStr.set(settings.defaultTeamSize)
+        
+        self.playersNumEntry = tk.Entry(self, textvariable=self.numPlayersStr)
+        self.playersNumEntry.pack()
+        
+        self.needExchangeBox = tk.Checkbutton(self, text = "Exchange questions", variable = self.needExchangeVar, onvalue = 1, offvalue = 0, height=1, width = 20)
+        self.needExchangeBox.pack()
+        
+        self.verboseBox = tk.Checkbutton(self, text = "Verbose", variable = self.verboseVar, onvalue = 1, offvalue = 0, height=1, width = 20)
+        self.verboseBox.pack()
 
+        self.simulateBtn = tk.Button(self)
+        self.simulateBtn["text"] = "Start!"
+        self.simulateBtn["command"] = self.simulationStart
+        self.simulateBtn.pack(side="top")
+
+        self.logWidget = tk.Text(self)
+        self.logWidget.pack()
+
+root = tk.Tk()
+app = AppWindow(master=root)
+app.master.minsize(settings.wndW, settings.wndH)
+app.master.maxsize(settings.wndW, settings.wndH)
+
+def Simulate(wnd):
+
+    teamSize = 0
+    numPlayersStr = wnd.getNumPlayersStr()
+    needExchange = wnd.getNeedExhange()
+    verbose = wnd.getVerbose()
+
+    try:
+        teamSize = int(numPlayersStr)
+    except: pass
+
+    simulator = Simulator()
+    simulator.logger.verbose = verbose
+    simulator.teamSize = teamSize
+    simulator.needExchange = needExchange
+
+    simulator.simulate()
+
+    logs = simulator.logger.getLog()
+
+    wnd.clearLog()
+    wnd.log(logs)
+
+    wnd.numPlayersStr.set(str(simulator.teamSize))
+
+
+app.simulateCallback = Simulate
 app.mainloop()
