@@ -1,4 +1,5 @@
 import tkinter as tk
+import sys
 
 teamsMoveStrategy = "Teams"
 cycleMoveStrategy = "Cycle"
@@ -252,28 +253,20 @@ class AppWindow(tk.Frame):
         self.logWidget = tk.Text(self)
         self.logWidget.pack()
 
-root = tk.Tk()
-app = AppWindow(master=root)
-app.master.minsize(settings.wndW, settings.wndH)
-app.master.maxsize(settings.wndW, settings.wndH)
-
-def Simulate(wnd):
-
-    teamSize = 0
-    numPlayersStr = wnd.getNumPlayersStr()
-    needExchange = wnd.getNeedExhange()
-    verbose = wnd.getVerbose()
-    cycledMove = wnd.getCycled()
-
+def getInt(numStr):
+    result = 0
     try:
-        teamSize = int(numPlayersStr)
+        result = int(numStr)
     except: pass
+    return result
+
+def SimulateWithUICB(wnd):
 
     simulator = Simulator()
-    simulator.moveType = cycleMoveStrategy if cycledMove else teamsMoveStrategy
-    simulator.logger.verbose = verbose
-    simulator.teamSize = teamSize
-    simulator.needExchange = needExchange
+    simulator.moveType = cycleMoveStrategy if wnd.getCycled() else teamsMoveStrategy
+    simulator.logger.verbose = wnd.getVerbose()
+    simulator.teamSize = getInt(wnd.getNumPlayersStr())
+    simulator.needExchange = wnd.getNeedExhange()
 
     simulator.simulate()
 
@@ -284,6 +277,32 @@ def Simulate(wnd):
 
     wnd.numPlayersStr.set(str(simulator.teamSize))
 
+def SimulateWithUI():
 
-app.simulateCallback = Simulate
-app.mainloop()
+    root = tk.Tk()
+    app = AppWindow(master=root)
+    app.master.minsize(settings.wndW, settings.wndH)
+    app.master.maxsize(settings.wndW, settings.wndH)
+    app.simulateCallback = SimulateWithUICB
+    app.mainloop()
+
+def SimulateWithConsole():
+    
+    simulator = Simulator()
+    simulator.teamSize = getInt(input("players in each team: "))
+    simulator.moveType = cycleMoveStrategy if input("cycle? (y/n)") == "y" else teamsMoveStrategy
+    simulator.logger.verbose = input("verbose? (y/n)") == "y"
+    simulator.needExchange = input("exchange? (y/n)") == "y"
+
+    simulator.simulate()
+
+    logs = simulator.logger.getLog()
+
+    print(logs)    
+
+console = "console" in sys.argv
+
+if console:
+    SimulateWithConsole()
+else:
+    SimulateWithUI()
