@@ -1,8 +1,8 @@
 import tkinter as tk
 import sys
 
-teamsMoveStrategy = "Teams"
-cycleMoveStrategy = "Cycle"
+TEAMS_MOVE_STRATEGY = "Teams"
+CYCLE_MOVE_STRATEGY = "Cycle"
 
 class Settings:
     def __init__(self):
@@ -51,40 +51,36 @@ questionsStrList = [
 
 assert len(names) <= len(questionsStrList)
 
-class Question:
-    def __init__(self, str):
-        self.str = str
-
 class Logger:
     def __init__(self):
         self.__logs = ""
         self.verbose = False
 
     def log(self, msg):
-        self.__logs = self.__logs + msg + "\n"
+        self.__logs = f"{self.__logs}{msg}\n"
+        
 
     def getLog(self):
         return self.__logs[:]
 
 class Player:
-    def __init__(self):
-        self.name = ""
-        self.currQuestion = None
-        self.__questionsAsked = []
-        self.__questionsAnswered = []
+    def __init__(self, name, question, logger):
+        self.name = name
+        self.logger = logger
+        self.currQuestion = question
+        self.__questionsAnswered = set()
 
     def ask(self, anotherPlayer):
 
         alreadyAnswered = self.currQuestion in anotherPlayer.__questionsAnswered
         
-        self.__questionsAsked.append(self.currQuestion)
-        anotherPlayer.__questionsAnswered.append(self.currQuestion)
+        anotherPlayer.__questionsAnswered.add(self.currQuestion)
 
         if self.logger.verbose:
-            self.logger.log(self.name + " asks " + anotherPlayer.name + ": " + self.currQuestion.str)
+            self.logger.log(self.name + " asks " + anotherPlayer.name + ": " + self.currQuestion)
 
         if alreadyAnswered:
-            self.logger.log("oops, " + anotherPlayer.name + " had to answer '" + self.currQuestion.str + "' again..")
+            self.logger.log("oops, " + anotherPlayer.name + " had to answer '" + self.currQuestion + "' again..")
             return False
         
         return True
@@ -103,13 +99,17 @@ class Simulator:
         self.teamSize = settings.defaultTeamSize
         self.needExchange = False
         self.logger = Logger()
-        self.moveType = teamsMoveStrategy
+        self.moveType = TEAMS_MOVE_STRATEGY
+        self.questions = [qStr for qStr in questionsStrList]
 
-        self.questions = []
+        self.players = []
+        allPlayersNum = self.teamSize * 2
 
-        for qStr in questionsStrList:
-            self.questions.append(Question(qStr))
-        
+        self.players = [Player(names[index], self.questions[index], self.logger) for index in range(allPlayersNum)]
+
+        self.players1 = self.players[:self.teamSize]
+        self.players2 = self.players[self.teamSize:]
+      
     @property 
     def teamSize(self):
         return self.__teamSize
@@ -125,65 +125,42 @@ class Simulator:
 
         self.__teamSize = teamSize
 
-    def preparePlayers(self):
-        self.players = []
-        allPlayersNum = self.teamSize * 2
-
-        for index in range(allPlayersNum):
-            player = Player()
-            player.logger = self.logger
-            player.name = names[index]
-            player.currQuestion = self.questions[index]
-            self.players.append(player)
-
-        self.players1 = self.players[:self.teamSize]
-        self.players2 = self.players[self.teamSize:]
-
     def round(self):
         for pairInd in range(self.teamSize):
             player1 = self.players1[pairInd]
 
             index2 = pairInd
 
-            if self.moveType == teamsMoveStrategy:
+            if self.moveType == TEAMS_MOVE_STRATEGY:
                 index2 = (pairInd + self.offset) % self.teamSize
             
             player2 = self.players2[index2]
 
-            askOk1 = player1.ask(player2)
-
-            if not askOk1:
-                return False
-
-            askOk2 = player2.ask(player1)
-
-            if not askOk2:
+            if not player1.ask(player2) or not player2.ask(player1): 
                 return False
 
             if self.needExchange:
                 player1.exchange(player2)
 
-        if self.moveType == cycleMoveStrategy:
+        if self.moveType == CYCLE_MOVE_STRATEGY:
             players1 = self.players2[0:1] + self.players1[:-1]
             players2 = self.players2[1:] + self.players1[-1:]
             self.players1 = players1
             self.players2 = players2
         else:
-            self.offset = self.offset + 1
+            self.offset += 1
 
         return True
     
     def simulate(self):
-
-        self.preparePlayers()
         successfulRounds = 0
         self.offset = 0
-        canContinue = True
-
-        while canContinue:
-            canContinue = self.round()
-            if canContinue:
-                successfulRounds = successfulRounds + 1
+        
+        while True:
+            if self.round():
+                successfulRounds += 1
+            else:
+                break
     
         self.logger.log("Simulation ended, total successful rounds " + str(successfulRounds))
         self.logger.log("Questions answered: " + str(successfulRounds * self.teamSize * 2))
@@ -263,7 +240,7 @@ def getInt(numStr):
 def SimulateWithUICB(wnd):
 
     simulator = Simulator()
-    simulator.moveType = cycleMoveStrategy if wnd.getCycled() else teamsMoveStrategy
+    simulator.moveType = CYCLE_MOVE_STRATEGY if wnd.getCycled() else TEAMS_MOVE_STRATEGY
     simulator.logger.verbose = wnd.getVerbose()
     simulator.teamSize = getInt(wnd.getNumPlayersStr())
     simulator.needExchange = wnd.getNeedExhange()
@@ -290,7 +267,7 @@ def StartWithConsole():
     
     simulator = Simulator()
     simulator.teamSize = getInt(input("players in each team: "))
-    simulator.moveType = cycleMoveStrategy if input("cycle? (y/n)") == "y" else teamsMoveStrategy
+    simulator.moveType = CYCLE_MOVE_STRATEGY if input("cycle? (y/n)") == "y" else TEAMS_MOVE_STRATEGY
     simulator.logger.verbose = input("verbose? (y/n)") == "y"
     simulator.needExchange = input("exchange? (y/n)") == "y"
 
